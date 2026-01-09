@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Gesture Music Remote</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#000000">
+  <link rel="manifest" href="manifest.json">
+  <style>
+    html,body{margin:0;height:100%;background:#000;color:#fff;font-family:system-ui;display:flex;align-items:center;justify-content:center;text-align:center}
+    #pill{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:30px;font-size:24px;opacity:0;transition:opacity .3s}
+    .show{opacity:.8!important}
+    .next{background:#28a745}
+    .prev{background:#dc3545}
+    .pause{background:#007bff}
+  </style>
+</head>
+<body>
+  <div>
+    <h1>🎧 Gesture Remote</h1>
+    <p>Twist right/left or jerk down to control music.</p>
+  </div>
+  <div id="pill"></div>
+
+<script>
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+
+const pill = document.getElementById('pill');
+let baseLine = {x:0,y:0,z:0}, cal=3; // first 3 s calibration
+const TH = 1.8; // g threshold
+
+function showPill(cls,icon){
+  pill.className='show '+cls;
+  pill.textContent=icon;
+  setTimeout(()=>pill.classList.remove('show'),300);
+}
+
+function send(cmd){
+  try{
+    navigator.mediaSession.setActionHandler(cmd,()=>{});
+    // fire once
+    if (cmd==='nexttrack')      showPill('next','⏭️');
+    else if (cmd==='previoustrack') showPill('prev','⏮️');
+    else if (cmd==='pause')     showPill('pause','⏯️');
+    navigator.vibrate&&navigator.vibrate(20);
+  }catch(e){}
+}
+
+window.addEventListener('devicemotion',e=>{
+  if(!e.accelerationIncludingGravity) return;
+  const {x,y,z}=e.accelerationIncludingGravity;
+  if(cal>0){ baseLine={x,y,z}; cal-=.05; return; }
+
+  const dx=x-baseLine.x, dy=y-baseLine.y, dz=z-baseLine.z;
+  const mag=Math.sqrt(dx*dx+dy*dy+dz*dz);
+
+  if(mag>TH){
+     // twist detect
+     if(Math.abs(dz)>1.2){
+        if(dx>1.2) send('nexttrack');
+        else if(dx<-1.2) send('previoustrack');
+     }
+     // jerk down
+     else if(dy<-1.8) send('pause');
+  }
+});
+</script>
+</body>
+</html>
